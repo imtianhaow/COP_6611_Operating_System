@@ -42,6 +42,14 @@ sys_getpid(void)
   return myproc()->pid;
 }
 
+int 
+sys_hello(void)
+{
+  cprintf("Hello from the Kernel!\n");
+  return 0;
+}
+
+
 int
 sys_sbrk(void)
 {
