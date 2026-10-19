@@ -88,6 +88,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->running_ticks = 0; // Initialize running_ticks to 0 for the new process
 
   release(&ptable.lock);
 
@@ -532,3 +533,39 @@ procdump(void)
     cprintf("\n");
   }
 }
+
+
+// Function to increment the running_ticks of the current process
+void increment_running_ticks(void) {
+  struct proc *curproc = myproc();
+  if(curproc == 0) {
+    return; // No current process
+  }
+  acquire(&ptable.lock);
+  if(curproc->state == RUNNING) {
+    curproc->running_ticks++;
+  }
+  release(&ptable.lock);
+}
+
+
+int get_running_ticks(int pid) {
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  // traverse the process table to find the process with the given pid
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      int ticks = p->running_ticks;
+      release(&ptable.lock);
+      return ticks;
+    }
+  }
+  release(&ptable.lock);
+  
+  // else process not found, return -1
+  return -1;
+}
+
+
+

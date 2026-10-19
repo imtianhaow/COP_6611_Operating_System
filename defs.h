@@ -121,6 +121,9 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 
+void           increment_running_ticks(void); // Function to increment running_ticks for the current process
+int            get_running_ticks(int); // Function to get the running_ticks for the current process
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 

@@ -97,3 +97,12 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+// System call to get the number of running ticks for a process
+int sys_ticks_running(void) {
+  int pid;
+  // Get the pid argument from the user space - first argument of the system call
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_running_ticks(pid);
+}
