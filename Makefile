@@ -90,6 +90,15 @@ ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]nopie'),)
 CFLAGS += -fno-pie -nopie
 endif
 
+SCHEDULER ?= DEFAULT
+
+ifeq ($(SCHEDULER), DEFAULT)
+CFLAGS += -DSCHEDULER_DEFAULT
+else ifeq ($(SCHEDULER), SJF)
+CFLAGS += -DSCHEDULER_SJF
+endif
+
+
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000
 	dd if=bootblock of=xv6.img conv=notrunc
@@ -185,6 +194,7 @@ UPROGS=\
 	_sleep\
 	_sort\
 	_ticks_test\
+	_sjf_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

@@ -51,6 +51,7 @@ struct proc {
   char name[16];               // Process name (debugging)
 
   int running_ticks;          // Number of ticks the process has been running
+  int job_length;           // predicted job length for SJF scheduling
 };
 
 // Process memory is laid out contiguously, low addresses first:

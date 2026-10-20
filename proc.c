@@ -65,6 +65,18 @@ myproc(void) {
   return p;
 }
 
+#define SJF_MIN_JOB_LENGTH 1  // Minimum job length for SJF scheduling
+#define SJF_MAX_JOB_LENGTH 1000  // Maximum job length for SJF scheduling
+
+static uint sjf_rand_state = 1;
+static uint sjf_rand(void) {
+  
+  sjf_rand_state = sjf_rand_state * 1103515245U + 12345U;
+  return sjf_rand_state;
+}
+
+
+
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
 // If found, change state to EMBRYO and initialize
@@ -89,6 +101,7 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->running_ticks = 0; // Initialize running_ticks to 0 for the new process
+  p->job_length = SJF_MIN_JOB_LENGTH + (sjf_rand() % (SJF_MAX_JOB_LENGTH - SJF_MIN_JOB_LENGTH + 1)); // Assign a random job length for SJF scheduling
 
   release(&ptable.lock);
 
@@ -326,6 +339,9 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   c->proc = 0;
+#ifdef SCHEDULER_SJF
+  struct proc *shortest_job = 0;
+#endif
   
   for(;;){
     // Enable interrupts on this processor.
@@ -333,6 +349,37 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+#ifdef SCHEDULER_SJF
+    // SJF scheduling code
+    // first find the shortest job in the process table
+    shortest_job = 0;
+    // traverse all the processes in the ptable
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      if(shortest_job == 0 || p->job_length < shortest_job->job_length){
+        shortest_job = p;
+      }
+    }
+
+    if (shortest_job != 0) {
+      // Switch to the shortest job process
+      c->proc = shortest_job;
+      switchuvm(shortest_job);
+      shortest_job->state = RUNNING;
+
+      swtch(&(c->scheduler), shortest_job->context);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      c->proc = 0;
+    }
+
+#else
+    // original scheduler code - default
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -351,6 +398,7 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
+#endif
     release(&ptable.lock);
 
   }
@@ -568,4 +616,22 @@ int get_running_ticks(int pid) {
 }
 
 
+// Function to get the predicted job length of a process given its pid
+int get_sfj_job_length(int pid) {
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  // traverse the process table to find the process with the given pid
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      int job_length = p->job_length;
+      release(&ptable.lock);
+      return job_length;
+    }
+  }
+  release(&ptable.lock);
+  
+  // else process not found, return -1
+  return -1;
+}
 

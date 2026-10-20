@@ -106,3 +106,12 @@ int sys_ticks_running(void) {
     return -1;
   return get_running_ticks(pid);
 }
+
+// system call to get the predicted job length for a process
+int sys_sjf_job_length(void) {
+  int pid;
+  // Get the pid argument from the user space - first argument of the system call
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_sfj_job_length(pid);
+}
