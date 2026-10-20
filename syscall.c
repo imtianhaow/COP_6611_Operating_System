@@ -106,6 +106,9 @@ extern int sys_uptime(void);
 extern int sys_hello(void);
 extern int sys_ticks_running(void);
 extern int sys_sjf_job_length(void);
+extern int sys_set_sched_priority(void);
+extern int sys_get_sched_priority(void);
+extern int sys_set_sched_quantum(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -132,6 +135,9 @@ static int (*syscalls[])(void) = {
 [SYS_hello]   sys_hello,
 [SYS_ticks_running] sys_ticks_running,
 [SYS_sjf_job_length] sys_sjf_job_length,
+[SYS_set_sched_priority] sys_set_sched_priority,
+[SYS_get_sched_priority] sys_get_sched_priority,
+[SYS_set_sched_quantum] sys_set_sched_quantum,
 };
 
 void

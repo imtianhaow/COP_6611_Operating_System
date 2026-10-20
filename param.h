@@ -12,3 +12,8 @@
 #define NBUF         (MAXOPBLOCKS*3)  // size of disk block cache
 #define FSSIZE       1000  // size of file system in blocks
 
+
+#define PRIORITY_LEVELS 3 // Number of priority levels for MLFQ scheduling
+#define DEFAULT_PRIORITY 1 // Default priority level for new processes
+#define DEFAULT_QUANTUM 10 // Default time quantum for each priority level
+#define MAX_QUANTUM 100 // Maximum time quantum for the highest priority level

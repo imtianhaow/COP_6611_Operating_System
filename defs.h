@@ -124,6 +124,11 @@ void            yield(void);
 void           increment_running_ticks(void); // Function to increment running_ticks for the current process
 int            get_running_ticks(int); // Function to get the running_ticks for the current process
 
+int set_process_priority(int priority); // Function to set the priority level of the current process
+int get_process_priority(int pid); // Function to get the priority level of a process given its
+int set_current_time_quantum(int quantum); // Function to set the time quantum of the current process
+int priority_should_yield(void); // Function to check if the current process should yield
+
 // swtch.S
 void            swtch(struct context**, struct context*);
 

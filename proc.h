@@ -52,6 +52,10 @@ struct proc {
 
   int running_ticks;          // Number of ticks the process has been running
   int job_length;           // predicted job length for SJF scheduling
+
+  int sched_priority;          // Priority level for MLFQ scheduling
+  int time_quantum;            // Time quantum for MLFQ scheduling
+  int quantum_ticks;          // Number of ticks the process has been running in its current time quantum
 };
 
 // Process memory is laid out contiguously, low addresses first:

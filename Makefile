@@ -96,6 +96,8 @@ ifeq ($(SCHEDULER), DEFAULT)
 CFLAGS += -DSCHEDULER_DEFAULT
 else ifeq ($(SCHEDULER), SJF)
 CFLAGS += -DSCHEDULER_SJF
+else ifeq ($(SCHEDULER), PRIORITYRR)
+CFLAGS += -DSCHEDULER_PRIORITYRR
 endif
 
 
@@ -195,6 +197,7 @@ UPROGS=\
 	_sort\
 	_ticks_test\
 	_sjf_test\
+	_priority_test\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)

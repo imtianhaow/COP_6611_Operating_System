@@ -26,6 +26,9 @@ int uptime(void);
 int hello(void);
 int ticks_running(int pid);
 int sjf_job_length(int pid);
+int set_sched_priority(int priority);
+int get_sched_priority(int pid);
+int set_sched_quantum(int quantum);
 
 // ulib.c
 int stat(const char*, struct stat*);

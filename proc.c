@@ -103,6 +103,10 @@ found:
   p->running_ticks = 0; // Initialize running_ticks to 0 for the new process
   p->job_length = SJF_MIN_JOB_LENGTH + (sjf_rand() % (SJF_MAX_JOB_LENGTH - SJF_MIN_JOB_LENGTH + 1)); // Assign a random job length for SJF scheduling
 
+  p->sched_priority = DEFAULT_PRIORITY; // Initialize priority level for MLFQ scheduling
+  p->time_quantum = DEFAULT_QUANTUM; // Initialize time quantum for MLF
+  p->quantum_ticks = 0; // Initialize quantum_ticks to 0 for the new process
+
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -342,6 +346,16 @@ scheduler(void)
 #ifdef SCHEDULER_SJF
   struct proc *shortest_job = 0;
 #endif
+
+//  
+#ifdef SCHEDULER_PRIORITYRR
+  struct proc *chosen;
+  int highest_priority;
+  int chosen_index;
+  int cursor = 0;
+  int i;
+  int index;
+#endif
   
   for(;;){
     // Enable interrupts on this processor.
@@ -377,7 +391,51 @@ scheduler(void)
       // It should have changed its p->state before coming back.
       c->proc = 0;
     }
+#elif defined(SCHEDULER_PRIORITYRR)
+    // Priority Round Robin scheduling code
+    chosen = 0;
+    highest_priority = PRIORITY_LEVELS;
+    chosen_index = -1;
 
+    // Find the highest priority process in the process table
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      if(p->sched_priority < highest_priority){
+        highest_priority = p->sched_priority;
+      }
+    }
+
+    // find the next process with the highest priority in a round-robin manner
+    if(highest_priority < PRIORITY_LEVELS){
+      for(i = 0; i < NPROC; i++){
+        index = (cursor + i) % NPROC;
+        p = &ptable.proc[index];
+        // 
+        if(p->state == RUNNABLE && p->sched_priority == highest_priority){
+          chosen = p;
+          chosen_index = index;
+          break;
+        }
+      }
+    }
+
+    // If a process was chosen, run it
+    if(chosen != 0){
+      cursor = (chosen_index + 1) % NPROC; // Update cursor for next round-robin selection
+      chosen->quantum_ticks = 0;
+
+      c->proc = chosen;
+      switchuvm(chosen);
+      chosen->state = RUNNING;
+
+      swtch(&(c->scheduler), chosen->context);
+      switchkvm();
+
+      c->proc = 0;
+    }
+ 
 #else
     // original scheduler code - default
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
@@ -635,3 +693,88 @@ int get_sfj_job_length(int pid) {
   return -1;
 }
 
+// Function to set the priority level of the current process
+int set_current_priority(int priority) {
+  struct proc *curproc = myproc();
+
+  if(priority < 0 || priority >= PRIORITY_LEVELS) {
+    return -1; // Invalid priority level
+  }
+
+  if(curproc == 0) {
+    return -1; // No current process
+  }
+
+  acquire(&ptable.lock);
+  curproc->sched_priority = priority;
+  curproc->quantum_ticks = 0; // Reset quantum_ticks when changing priority
+  release(&ptable.lock);
+  
+  return 0; // Success
+}
+
+// Function to get the priority level of a process given its pid
+int get_process_priority(int pid) {
+  struct proc *p;
+  
+  acquire(&ptable.lock);
+  // traverse the process table to find the process with the given pid
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      int priority = p->sched_priority;
+      release(&ptable.lock);
+      return priority;
+    }
+  }
+  release(&ptable.lock);
+  
+  // else process not found, return -1
+  return -1;
+}
+
+// Function to set the time quantum of the current process
+int set_current_time_quantum(int quantum) {
+  struct proc *curproc = myproc();
+
+  if(quantum <= 0 || quantum > MAX_QUANTUM) {
+    return -1; // Invalid time quantum
+  }
+
+  if(curproc == 0) {
+    return -1; // No current process
+  }
+
+  acquire(&ptable.lock);
+  curproc->time_quantum = quantum;
+  curproc->quantum_ticks = 0; // Reset quantum_ticks when changing time quantum
+  release(&ptable.lock);
+  
+  return 0; // Success
+}
+
+int priority_should_yield(void) {
+  struct proc *curproc = myproc();
+  struct proc *p;
+  int should_yield = 0;
+
+  if(curproc == 0) {
+    return 0; // No current process
+  }
+
+  acquire(&ptable.lock);
+  if(curproc->state == RUNNING) {
+    curproc->quantum_ticks++;
+    if(curproc->quantum_ticks >= curproc->time_quantum) {
+      should_yield = 1; // Current process has used up its time quantum
+    }
+
+    for (p = ptable.proc; p < &ptable.proc[NPROC]; p++) {
+      if(p->state == RUNNABLE && p->sched_priority < curproc->sched_priority) {
+        should_yield = 1; // There is a higher priority process that is runnable
+        break;
+      }
+    }
+  }
+  release(&ptable.lock);
+  return should_yield;
+}

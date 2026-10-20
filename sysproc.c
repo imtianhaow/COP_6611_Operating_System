@@ -115,3 +115,27 @@ int sys_sjf_job_length(void) {
     return -1;
   return get_sfj_job_length(pid);
 }
+
+int sys_set_sched_priority(void) {
+  int priority;
+  // Get the priority argument from the user space - first argument of the system call
+  if(argint(0, &priority) < 0)
+    return -1;
+  return set_current_priority(priority);
+}
+
+int sys_get_sched_priority(void) {
+  int pid;
+  // Get the pid argument from the user space - first argument of the system call
+  if(argint(0, &pid) < 0)
+    return -1;
+  return get_process_priority(pid);
+}
+
+int sys_set_sched_quantum(void) {
+  int quantum;
+  // Get the quantum argument from the user space - first argument of the system call
+  if(argint(0, &quantum) < 0)
+    return -1;
+  return set_current_time_quantum(quantum);
+}
