@@ -36,6 +36,11 @@ idtinit(void)
 void
 trap(struct trapframe *tf)
 {
+
+  uint fault_addr;
+  uint page_addr;
+  char *mem;
+
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
       exit();
@@ -80,6 +85,37 @@ trap(struct trapframe *tf)
             cpuid(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  // add the page fault case to the trap handler -- implement lazy allocation
+  case T_PGFLT:
+    {
+      // Get the faulting address from CR2 register
+      fault_addr = rcr2();
+
+      // Round down the faulting address to the nearest page boundary
+      page_addr = PGROUNDDOWN(fault_addr);
+
+      // Allocate a new page of memory
+      mem = kalloc();
+      if(mem == 0){
+        cprintf("Out of memory: cannot allocate page for address 0x%x\n", fault_addr);
+        myproc()->killed = 1;
+        break;
+      }
+
+      // Clear the allocated memory
+      memset(mem, 0, PGSIZE);
+
+      // Map the new page to the faulting address in the process's page table
+      if(mappages(myproc()->pgdir, (char*)page_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+        cprintf("Failed to map page for address 0x%x\n", fault_addr);
+        kfree(mem);
+        myproc()->killed = 1;
+        break;
+      }
+    }
+    break;
+
+
 
   //PAGEBREAK: 13
   default:
