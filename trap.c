@@ -10,8 +10,10 @@
 
 #ifdef ALLOCATOR_LOCALITY
 #define PAGES_PER_FAULT 3
+#define ALLOCATOR_NAME "LOCALITY"
 #else
 #define PAGES_PER_FAULT 1
+#define ALLOCATOR_NAME "LAZY"
 #endif
 
 // Interrupt descriptor table (shared by all CPUs).
@@ -98,12 +100,14 @@ trap(struct trapframe *tf)
   // add the page fault case to the trap handler -- implement lazy allocation
   case T_PGFLT:
     {
+      int mapped_pages;
       // Get the faulting address from CR2 register
       fault_addr = rcr2();
 
       // Round down the faulting address to the nearest page boundary
       page_addr = PGROUNDDOWN(fault_addr);
       // LAZY maps 1 page; LOCALITY maps 3 pages
+      mapped_pages = 0;
       for(i = 0; i < PAGES_PER_FAULT; i++) {
         map_addr = page_addr + i * PGSIZE;
 
@@ -134,6 +138,8 @@ trap(struct trapframe *tf)
           break;
         }
 
+        mapped_pages++;
+
         // Map the new page to the faulting address in the process's page table
         // if(mappages(myproc()->pgdir, (char*)page_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
         //   cprintf("Failed to map page for address 0x%x\n", map_addr);
@@ -142,6 +148,12 @@ trap(struct trapframe *tf)
         //   break;
         // }
       }
+
+      if(!myproc()->killed) {
+        cprintf("Mapped %d page(s) for process %d (%s) at address 0x%x using %s allocator\n", 
+                mapped_pages, myproc()->pid, myproc()->name, page_addr, ALLOCATOR_NAME);
+      }
+
 
     }
     break;
