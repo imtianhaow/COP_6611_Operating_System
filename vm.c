@@ -54,6 +54,20 @@ walkpgdir(pde_t *pgdir, const void *va, int alloc)
   return &pgtab[PTX(va)];
 }
 
+// Create a mapping in the page table for a single page at virtual address va to physical memory at mem.
+int map_lazy_page(pde_t *pgdir, uint va, char *mem) {
+  pte_t *pte = walkpgdir(pgdir, (char*)va, 1);
+  if (pte == 0) {
+    return -1; // Failed to allocate page table
+  }
+  if (*pte & PTE_P) {
+    return 1; // Page already mapped
+  }
+
+  *pte = V2P(mem) | PTE_P | PTE_W | PTE_U;
+  return 0; // Successfully mapped
+}
+
 // Create PTEs for virtual addresses starting at va that refer to
 // physical addresses starting at pa. va and size might not
 // be page-aligned.

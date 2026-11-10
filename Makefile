@@ -100,6 +100,12 @@ else ifeq ($(SCHEDULER), PRIORITYRR)
 CFLAGS += -DSCHEDULER_PRIORITYRR
 endif
 
+ALLOCATOR ?= LAZY
+ifeq ($(ALLOCATOR), LAZY)
+CFLAGS += -DALLOCATOR_LAZY
+else ifeq ($(ALLOCATOR), LOCALITY)
+CFLAGS += -DALLOCATOR_LOCALITY
+endif
 
 xv6.img: bootblock kernel
 	dd if=/dev/zero of=xv6.img count=10000

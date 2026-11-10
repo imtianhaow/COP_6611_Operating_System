@@ -8,6 +8,12 @@
 #include "traps.h"
 #include "spinlock.h"
 
+#ifdef ALLOCATOR_LOCALITY
+#define PAGES_PER_FAULT 3
+#else
+#define PAGES_PER_FAULT 1
+#endif
+
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
@@ -40,6 +46,10 @@ trap(struct trapframe *tf)
   uint fault_addr;
   uint page_addr;
   char *mem;
+
+  uint map_addr;
+  int i;
+  int map_result;
 
   if(tf->trapno == T_SYSCALL){
     if(myproc()->killed)
@@ -93,25 +103,46 @@ trap(struct trapframe *tf)
 
       // Round down the faulting address to the nearest page boundary
       page_addr = PGROUNDDOWN(fault_addr);
+      // LAZY maps 1 page; LOCALITY maps 3 pages
+      for(i = 0; i < PAGES_PER_FAULT; i++) {
+        map_addr = page_addr + i * PGSIZE;
 
-      // Allocate a new page of memory
-      mem = kalloc();
-      if(mem == 0){
-        cprintf("Out of memory: cannot allocate page for address 0x%x\n", fault_addr);
-        myproc()->killed = 1;
-        break;
+
+        // Allocate a new page of memory
+        mem = kalloc();
+        if(mem == 0){
+          cprintf("Out of memory: cannot allocate page for address 0x%x\n", map_addr);
+          myproc()->killed = 1;
+          break;
+        }
+
+        // Clear the allocated memory
+        memset(mem, 0, PGSIZE);
+
+        map_result = map_lazy_page(myproc()->pgdir, map_addr, mem);
+        // Page already mapped, continue to the next page
+        if(map_result == 1) {
+          kfree(mem);
+          continue; 
+        }
+
+        // If mapping failed, free the allocated memory and kill the process
+        if (map_result < 0) {
+          cprintf("Failed to map page for address 0x%x\n", map_addr);
+          kfree(mem);
+          myproc()->killed = 1;
+          break;
+        }
+
+        // Map the new page to the faulting address in the process's page table
+        // if(mappages(myproc()->pgdir, (char*)page_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
+        //   cprintf("Failed to map page for address 0x%x\n", map_addr);
+        //   kfree(mem);
+        //   myproc()->killed = 1;
+        //   break;
+        // }
       }
 
-      // Clear the allocated memory
-      memset(mem, 0, PGSIZE);
-
-      // Map the new page to the faulting address in the process's page table
-      if(mappages(myproc()->pgdir, (char*)page_addr, PGSIZE, V2P(mem), PTE_W|PTE_U) < 0){
-        cprintf("Failed to map page for address 0x%x\n", fault_addr);
-        kfree(mem);
-        myproc()->killed = 1;
-        break;
-      }
     }
     break;
 
