@@ -16,6 +16,12 @@
 #include "file.h"
 #include "fcntl.h"
 
+
+#define MAX_SYMLINK_DEPTH 10 // Maximum depth for resolving symbolic links
+#define SYMLINK_TARGET_SIZE 128 // Maximum size of a symbolic link target
+
+static struct inode* create(char *path, short type, short major, short minor);
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -175,6 +181,43 @@ bad:
   return -1;
 }
 
+// sys_symlink() 
+int sys_symlink(void) {
+  char *target;
+  char *path;
+  struct inode *ip;
+  int length;
+
+  // check if the arguments are valid
+  if(argstr(0, &target) < 0 || argstr(1, &path) < 0)
+    return -1;
+
+  length = strlen(target) + 1;
+
+  if (length > SYMLINK_TARGET_SIZE) {
+    return -1; // target path is too long
+  }
+
+  begin_op();
+
+  // create a new inode for the symbolic link
+  if((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
+    end_op();
+    return -1;
+  }
+
+  // write the target path into the symbolic link inode
+  if (writei(ip, target, 0, length) != length) {
+    iunlockput(ip);
+    end_op();
+    return -1;
+  }
+
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+
 // Is the directory dp empty except for "." and ".." ?
 static int
 isdirempty(struct inode *dp)
@@ -300,6 +343,10 @@ sys_open(void)
   int fd, omode;
   struct file *f;
   struct inode *ip;
+  
+  char target[SYMLINK_TARGET_SIZE];
+  int depth = 0;
+  int length;
 
   if(argstr(0, &path) < 0 || argint(1, &omode) < 0)
     return -1;
@@ -318,11 +365,50 @@ sys_open(void)
       return -1;
     }
     ilock(ip);
-    if(ip->type == T_DIR && omode != O_RDONLY){
-      iunlockput(ip);
-      end_op();
-      return -1;
-    }
+
+    // if(ip->type == T_DIR && omode != O_RDONLY){
+    //   iunlockput(ip);
+    //   end_op();
+    //   return -1;
+    // }
+  }
+
+  // follow symbolic links if the O_NOFOLLOW flag is not set
+  if(!(omode & O_NOFOLLOW)) {
+    depth = 0;
+    while(ip->type == T_SYMLINK) {
+      if(depth >= MAX_SYMLINK_DEPTH) {
+        iunlockput(ip);
+        end_op();
+        return -1; // too many symbolic links
+      }
+
+      depth++;
+      // read the target path from the symbolic link inode
+      length = readi(ip, target, 0, SYMLINK_TARGET_SIZE);
+
+      if(length <= 0) {
+        iunlockput(ip);
+        end_op();
+        return -1; // failed to read symbolic link
+      }
+
+      target[length] = '\0'; // null-terminate the target path
+
+      iunlockput(ip); // unlock the current symbolic link inode
+
+      if((ip=namei(target)) == 0) {
+        end_op();
+        return -1; // target path does not exist
+      }
+      ilock(ip); // lock the new inode
+  }
+}
+  // check if the file is a directory and the open mode is not read-only
+  if(ip->type == T_DIR && omode != O_RDONLY){
+    iunlockput(ip);
+    end_op();
+    return -1;
   }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){

@@ -30,6 +30,7 @@ int set_sched_priority(int priority);
 int get_sched_priority(int pid);
 int set_sched_quantum(int quantum);
 int lseek(int fd, int offset);
+int symlink(const char *target, const char *linkpath);
 
 // ulib.c
 int stat(const char*, struct stat*);

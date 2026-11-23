@@ -110,6 +110,7 @@ extern int sys_set_sched_priority(void);
 extern int sys_get_sched_priority(void);
 extern int sys_set_sched_quantum(void);
 extern int sys_lseek(void);
+extern int sys_symlink(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -140,6 +141,7 @@ static int (*syscalls[])(void) = {
 [SYS_get_sched_priority] sys_get_sched_priority,
 [SYS_set_sched_quantum] sys_set_sched_quantum,
 [SYS_lseek] sys_lseek,
+[SYS_symlink] sys_symlink,
 };
 
 void

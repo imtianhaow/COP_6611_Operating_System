@@ -27,3 +27,4 @@
 #define SYS_get_sched_priority 26
 #define SYS_set_sched_quantum 27
 #define SYS_lseek 28
+#define SYS_symlink 29
