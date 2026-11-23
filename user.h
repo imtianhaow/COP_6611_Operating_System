@@ -29,6 +29,7 @@ int sjf_job_length(int pid);
 int set_sched_priority(int priority);
 int get_sched_priority(int pid);
 int set_sched_quantum(int quantum);
+int lseek(int fd, int offset);
 
 // ulib.c
 int stat(const char*, struct stat*);

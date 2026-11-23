@@ -78,6 +78,17 @@ sys_read(void)
   return fileread(f, p, n);
 }
 
+int sys_lseek(void)
+{
+  struct file *f;
+  int offset;
+
+  if(argfd(0, 0, &f) < 0 || argint(1, &offset) < 0)
+    return -1;
+
+  return filelseek(f, offset);
+}
+
 int
 sys_write(void)
 {

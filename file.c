@@ -112,6 +112,59 @@ fileread(struct file *f, char *addr, int n)
   panic("fileread");
 }
 
+// Set the file offset for file f.
+// return new offset relative to beginning of file on success, -1 on error
+int filelseek(struct file *f, int offset)
+{
+  int newoff;
+  // Check if the file is an inode type
+  if(f->type != FD_INODE)
+    return -1;
+
+  ilock(f->ip);
+
+  // Calculate the new offset
+  newoff = f->off + offset;
+
+  // Check if the new offset is within the file size
+  if(newoff < 0) {
+    iunlock(f->ip);
+    return -1; // Invalid offset
+  }
+
+  f->off = newoff; // Update the file offset
+  iunlock(f->ip);
+  return newoff; // Return the new offset
+};
+
+// fill the hole between the end of the file and f->off with zeros
+static int filefillhole(struct file *f)
+{
+  int r;
+  char zero[512];
+  memset(zero, 0, sizeof(zero));
+
+  while(f->off > f->ip->size) {
+    int n = f->off - f->ip->size;
+    if(n > sizeof(zero))
+      n = sizeof(zero);
+
+    begin_op();
+    ilock(f->ip);
+    if ((r = writei(f->ip, zero, f->ip->size, n)) > 0)
+      f->ip->size += r;
+    iunlock(f->ip);
+    end_op();
+
+    if(r < 0)
+      return -1;
+    if(r != n)
+      panic("filefillhole: short write");
+  }
+  return 0;
+};
+
+
 //PAGEBREAK!
 // Write to file f.
 int
@@ -124,6 +177,11 @@ filewrite(struct file *f, char *addr, int n)
   if(f->type == FD_PIPE)
     return pipewrite(f->pipe, addr, n);
   if(f->type == FD_INODE){
+    if (n == 0) 
+      return 0; // No data to write, return success
+    if(filefillhole(f) < 0)
+      return -1;
+
     // write a few blocks at a time to avoid exceeding
     // the maximum log transaction size, including
     // i-node, indirect block, allocation blocks,

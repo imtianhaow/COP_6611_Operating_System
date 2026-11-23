@@ -34,6 +34,9 @@ int             fileread(struct file*, char*, int n);
 int             filestat(struct file*, struct stat*);
 int             filewrite(struct file*, char*, int n);
 
+// part 4
+int            filelseek(struct file *f, int offset); // Function to set the file offset for file f
+
 // fs.c
 void            readsb(int dev, struct superblock *sb);
 int             dirlink(struct inode*, char*, uint);

@@ -204,6 +204,7 @@ UPROGS=\
 	_ticks_test\
 	_sjf_test\
 	_priority_test\
+	_lseektest\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
